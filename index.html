@@ -34,6 +34,7 @@
         body {
             font-family: "Arial Bold", "Avant", sans-serif;
             overflow: hidden;
+            background-color: black;
         }
 
         #main-container {
@@ -101,6 +102,8 @@
             color: var(--weather-color);
             text-shadow: var(--weather-shadow);
             text-align: right;
+
+            opacity: 0;
         }
 
         #weather-date {
@@ -153,6 +156,7 @@
             height: 100%;
             object-fit: fill;
             z-index: 1;
+            opacity: 0;
         }
     </style>
 </head>
@@ -354,12 +358,24 @@
             
             // set weather data
             const { temperature, description, } = await fetchWeather()
+
+            let isFirstLoad = true;
+
+            bgImgEl.onload = () => {
+                bgImgEl.style.opacity = '1';
+                if (isFirstLoad) {
+                    setTemperature(temperature);
+                    updateDateTime();
+                    // Small delay to let image appear first, then text
+                    setTimeout(() => {
+                        document.getElementById('weather-container').style.opacity = '1';
+                    }, 1000); 
+                    setInterval(updateDateTime, 1000);
+                    isFirstLoad = false;
+                }
+            };
+
             setBackground(description)
-            setTemperature(temperature)
-            
-            // Start Date/Time Loop
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
 
             // Listen for resize to adjust background if shape changes
              window.addEventListener('resize', () => {
