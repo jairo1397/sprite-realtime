@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPRITE</title>
+    <style>
+        /* ============================================
+       CUSTOM FONTS
+       ============================================ */
+        /* ============================================
+       CUSTOM FONTS
+       ============================================ */
+        @font-face {
+            font-family: "AllRoundGothic Medium";
+            src: url('./fonts/Fuente para clima/AllRoundGothic-Medium.ttf');
+        }
+
+        @font-face {
+            font-family: "Arial Bold";
+            src: url('./fonts/Fuente para fecha y hora/Arial Bold.ttf');
+        }
+
+        /* ============================================
+       BASE STYLES
+       ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Arial Bold", "Avant", sans-serif;
+            overflow: hidden;
+        }
+
+        #main-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* ============================================
+       COUNTDOWN POSITIONING - BOTTOM RIGHT
+       ============================================ */
+        :root {
+            /* Main countdown position */
+            --weather-top: auto;
+            --weather-bottom: 3vh;
+            --weather-left: auto;
+            --weather-right: 5vw;
+            --weather-transform: none;
+
+            /* Font sizes */
+            --weather-time-size: 12vh;   /* Larger than date */
+            --weather-date-size: 7vh;
+            --weather-degrees-size: 22vh;
+
+            /* Colors */
+            --weather-color: #ffffff;
+            --weather-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Adjust sizes for Square mode */
+        body.mode-square {
+            --weather-time-size: 8vh;
+            --weather-date-size: 4.5vh;
+            --weather-degrees-size: 15vh;
+            --weather-bottom: 3vh; 
+            --weather-right: 6vw;
+        }
+
+        /* Right align temp in square mode */
+        body.mode-square #weather-degrees {
+            grid-column: 1 / -1;
+            justify-self: end;
+        }
+
+        /* ============================================
+       COUNTDOWN DISPLAY STYLES
+       ============================================ */
+        #weather-container {
+            position: fixed;
+            top: var(--weather-top);
+            bottom: var(--weather-bottom);
+            left: var(--weather-left);
+            right: var(--weather-right);
+            transform: var(--weather-transform);
+
+            display: grid;
+            grid-template-columns: max-content max-content max-content;
+            grid-template-rows: auto auto;
+            column-gap: 1vw;
+            
+            justify-content: end;
+            align-items: baseline;
+            z-index: 100;
+
+            color: var(--weather-color);
+            text-shadow: var(--weather-shadow);
+            text-align: right;
+        }
+
+        #weather-date {
+            grid-column: 1;
+            grid-row: 1;
+            font-family: "Arial Bold", sans-serif;
+            font-size: var(--weather-date-size);
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+        }
+
+        #weather-time {
+            grid-column: 2;
+            grid-row: 1;
+            font-family: "Arial Bold", sans-serif;
+            font-size: var(--weather-time-size);
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            text-align: center;
+        }
+
+        #weather-ampm {
+            grid-column: 3;
+            grid-row: 1;
+            font-family: "Arial Bold", sans-serif;
+            font-size: var(--weather-date-size); /* Same size as date */
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+        }
+
+        #weather-degrees {
+            grid-column: 2;
+            grid-row: 2;
+            justify-self: center; /* Center horizontally under time */
+            
+            font-family: "AllRoundGothic Medium", sans-serif;
+            font-size: var(--weather-degrees-size);
+            text-transform: uppercase;
+            font-weight: normal; 
+            line-height: 1;
+        }
+
+
+        /* Background Image - Absolute positioning to ensure full coverage */
+        #bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main-container">
+        <!-- Weather display -->
+        <div id="weather-container">
+             <div id="weather-date">-- --- ----</div>
+             <div id="weather-time">--:--</div>
+             <div id="weather-ampm">--</div>
+             <span id="weather-degrees">--°</span>
+        </div>
+
+        <!-- Background Image -->
+        <img
+            id="bg-img"
+            src=""
+            alt=""
+        />
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+           
+            // ============================================
+            // HTML ELEMENTS
+            // ============================================
+            const bgImgEl = document.getElementById('bg-img');
+            const weatherDegreesEl = document.getElementById('weather-degrees');
+            const weatherDateEl = document.getElementById('weather-date');
+            const weatherTimeEl = document.getElementById('weather-time');
+            const weatherAmpmEl = document.getElementById('weather-ampm');
+
+
+            // ============================================
+            // HELPER FUNCTIONS
+            // ============================================
+
+            // fetch weather data from api
+            const fetchWeather = async () => {
+                try {
+                    // Get panel ID from URL query params (default to 1 if not present)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const panelId = urlParams.get('id') || 1;
+                    console.log("Fetching data for Panel ID:", panelId);
+
+                    // Fetch coordinates for the panel
+                    const coordUrl = `https://apialacplayer.alacoohbolivia.com/playlist/panel/${panelId}`;
+                    console.log("Requesting coordinates from:", coordUrl);
+                    
+                    const coordResponse = await fetch(coordUrl);
+                    if (!coordResponse.ok) {
+                        throw new Error(`Coordinate API error: ${coordResponse.status}`);
+                    }
+                    const coordData = await coordResponse.json();
+                    console.log("Coordinate Data:", coordData);
+                    
+                    // Validate data structure
+                    if (!coordData.data || !coordData.data[0] || !coordData.data[0].point || !coordData.data[0].point.coordinates) {
+                        throw new Error("Invalid coordinate data structure");
+                    }
+
+                    const coordinates = coordData.data[0].point.coordinates;
+                    const lat = coordinates[0];
+                    const long = coordinates[1];
+
+                    console.log(`Coordinates found: Lat ${lat}, Long ${long}`);
+
+                    // Fetch weather using the retrieved coordinates
+                    const weatherUrl = `https://weatherstation.alacoohperu.pe/api/clima/${lat}/${long}`;
+                    console.log("Requesting weather from:", weatherUrl);
+
+                    const response = await fetch(weatherUrl);
+                    if (!response.ok) {
+                        throw new Error(`Weather API error: ${response.status}`);
+                    }
+                    const respAux = await response.json();
+                    console.log("Weather Data:", respAux);
+
+                    if (!respAux.data || !respAux.data.main || !respAux.data.weather) {
+                         throw new Error("Invalid weather data structure");
+                    }
+
+                    const temperature = respAux.data.main.temp.toString().split('.')[0]
+                    const description = respAux.data.weather[0].description
+
+                    return {
+                        temperature,
+                        description,
+                    }
+                } catch (e) {
+                    console.error("Error fetching weather details:", e);
+                    // Return existing data if available or placeholder, but log the error visibly
+                    return { temperature: '--', description: '' };
+                }
+            }
+
+            const updateDateTime = () => {
+                const now = new Date();
+                
+                // Date Format: 06 feb 2026
+                const day = now.getDate().toString().padStart(2, '0');
+                const month = now.toLocaleString('es-ES', { month: 'short' }).replace('.', ''); // feb, mar, etc.
+                const year = now.getFullYear();
+                
+                weatherDateEl.innerText = `${day} ${month} ${year}`;
+                
+                // Time Format: 06:00
+                let hours = now.getHours();
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                
+                hours = hours % 12;
+                hours = hours ? hours : 12; // the hour '0' should be '12'
+                const strHours = hours.toString().padStart(2, '0');
+
+                weatherTimeEl.innerText = `${strHours}:${minutes}`;
+                weatherAmpmEl.innerText = ampm;
+            };
+
+            // set icon
+            const WEATHER_ICON_MAP = {
+                cloudy: [
+                    'niebla',
+                    'muy nuboso',
+                    'bruma',
+                    'nubes'
+                ],
+                sunny: [
+                    'cielo claro',
+                    'algo de nubes',
+                    'nubes dispersas'
+                ],
+                rainy: [
+                    'lluvia ligera',
+                    'tormenta con lluvia ligera',
+                    'lluvia moderada',
+                    'tormenta',
+                    'tormenta con lluvia intensa',
+                    'tormenta con lluvia',
+                    'llovizna ligera',
+                    'llovizna moderada',
+                    'llovizna',
+                    'tormentas eléctricas dispersas',
+                    'chubascos',
+                    'llovizna débil'
+                ]
+            };
+
+            // Dictionary for mapping internal types to Spanish filenames
+            const WEATHER_TYPE_MAP = {
+                cloudy: 'nublado',
+                sunny: 'soleado',
+                rainy: 'lluvioso'
+            };
+
+            const setBackground = (desc) => {
+                const normalized = desc ? desc.toLowerCase() : '';
+
+                // Determine weather type
+                const type = Object.keys(WEATHER_ICON_MAP).find(key =>
+                    WEATHER_ICON_MAP[key].includes(normalized)
+                ) || 'cloudy';
+
+                // Determine shape based on dimensions
+                // If width > height * 1.2 -> 'horizontal', else 'cuadrado' (treats 510x450 as square)
+                const isHorizontal = window.innerWidth > (window.innerHeight * 1.2);
+                const shape = isHorizontal ? 'horizontal' : 'cuadrado';
+
+                // Get Spanish translation for filename
+                const spanishType = WEATHER_TYPE_MAP[type];
+
+                // Construct path: ./media/img/RT_shape/Sprite shape_type.png
+                // e.g. ./media/img/RT_horizontal/Sprite horizontal_soleado.png
+                const newPath = `./media/img/RT_${shape}/Sprite ${shape}_${spanishType}.png`;
+
+                console.log(`Setting background: ${newPath} (Shape: ${shape}, Type: ${type})`);
+                bgImgEl.src = newPath;
+
+                // Update body class for responsive styling
+                if (shape === 'cuadrado') {
+                    document.body.classList.add('mode-square');
+                    document.body.classList.remove('mode-horizontal');
+                } else {
+                    document.body.classList.add('mode-horizontal');
+                    document.body.classList.remove('mode-square');
+                }
+            };
+
+            // set temperature
+            const setTemperature = (temp) => {
+                weatherDegreesEl.innerText = temp + "°";
+            }
+
+            // ===========================
+            // MAIN PROCESS
+            // ===========================
+            
+            // set weather data
+            const { temperature, description, } = await fetchWeather()
+            setBackground(description)
+            setTemperature(temperature)
+            
+            // Start Date/Time Loop
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+
+            // Listen for resize to adjust background if shape changes
+             window.addEventListener('resize', () => {
+                 setBackground(description); 
+            });
+            
+        });
+    </script>
+
+</body>
+
+</html>
