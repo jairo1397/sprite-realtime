@@ -207,22 +207,35 @@
                     const panelId = urlParams.get('id') || 1;
                     console.log("Fetching data for Panel ID:", panelId);
 
+                    // Common fetch options with CORS and headers
+                    const fetchOptions = {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    };
+
                     // Fetch coordinates for the panel
                     const coordUrl = `https://apialacplayer.alacoohbolivia.com/playlist/panel/${panelId}`;
                     console.log("Requesting coordinates from:", coordUrl);
                     
-                    const coordResponse = await fetch(coordUrl, {
-                        method: 'GET',
-                        mode: 'cors',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                    let coordResponse;
+                    try {
+                        coordResponse = await fetch(coordUrl, fetchOptions);
+                    } catch (fetchErr) {
+                        console.error("Fetch error for coordinates:", fetchErr.message);
+                        throw fetchErr;
+                    }
                     
                     if (!coordResponse.ok) {
+                        console.error(`Coordinate API returned status: ${coordResponse.status}`);
                         throw new Error(`Coordinate API error: ${coordResponse.status}`);
                     }
+                    
                     const coordData = await coordResponse.json();
                     console.log("Coordinate Data:", coordData);
                     
@@ -241,18 +254,19 @@
                     const weatherUrl = `https://weatherstation.alacoohperu.pe/api/clima/${lat}/${long}`;
                     console.log("Requesting weather from:", weatherUrl);
 
-                    const response = await fetch(weatherUrl, {
-                        method: 'GET',
-                        mode: 'cors',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                    let response;
+                    try {
+                        response = await fetch(weatherUrl, fetchOptions);
+                    } catch (fetchErr) {
+                        console.error("Fetch error for weather:", fetchErr.message);
+                        throw fetchErr;
+                    }
                     
                     if (!response.ok) {
+                        console.error(`Weather API returned status: ${response.status}`);
                         throw new Error(`Weather API error: ${response.status}`);
                     }
+                    
                     const respAux = await response.json();
                     console.log("Weather Data:", respAux);
 
@@ -268,9 +282,9 @@
                         description,
                     }
                 } catch (e) {
-                    console.error("Error fetching weather details:", e);
-                    console.error("Error type:", e.message);
-                    console.error("Error stack:", e.stack);
+                    console.error("Error fetching weather details:", e.message);
+                    console.error("Error type:", e.name);
+                    if (e.stack) console.error("Error stack:", e.stack);
                     // Return existing data if available or placeholder
                     return { temperature: '--', description: 'niebla' };
                 }
