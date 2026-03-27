@@ -180,7 +180,10 @@
     </div>
 
     <script>
+        console.log("Script loaded, window.innerWidth:", window.innerWidth, "window.innerHeight:", window.innerHeight);
+        
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log("DOMContentLoaded fired");
            
             // ============================================
             // HTML ELEMENTS
@@ -250,6 +253,7 @@
                     }
                 } catch (e) {
                     console.error("Error fetching weather details:", e);
+                    console.error("Error stack:", e.stack);
                     // Return existing data if available or placeholder, but log the error visibly
                     return { temperature: '--', description: '' };
                 }
@@ -316,6 +320,7 @@
 
             const setBackground = (desc) => {
                 const normalized = desc ? desc.toLowerCase() : '';
+                console.log("setBackground called with description:", desc);
 
                 // Determine weather type
                 const type = Object.keys(WEATHER_ICON_MAP).find(key =>
@@ -326,6 +331,7 @@
                 // If width > height * 1.2 -> 'horizontal', else 'cuadrado' (treats 510x450 as square)
                 const isHorizontal = window.innerWidth > (window.innerHeight * 1.2);
                 const shape = isHorizontal ? 'horizontal' : 'cuadrado';
+                console.log(`Dimensions: ${window.innerWidth}x${window.innerHeight}, isHorizontal: ${isHorizontal}, shape: ${shape}`);
 
                 // Get Spanish translation for filename
                 const spanishType = WEATHER_TYPE_MAP[type];
@@ -335,6 +341,7 @@
                 const newPath = `./media/img/RT_${shape}/Sprite ${shape}_${spanishType}.png`;
 
                 console.log(`Setting background: ${newPath} (Shape: ${shape}, Type: ${type})`);
+                console.log(`Description: "${description}", Normalized: "${normalized}"`);
                 bgImgEl.src = newPath;
 
                 // Update body class for responsive styling
@@ -355,32 +362,57 @@
             // ===========================
             // MAIN PROCESS
             // ===========================
-            
-            // set weather data
-            const { temperature, description, } = await fetchWeather()
+            try {
+                console.log("Starting main process");
+                
+                // set weather data
+                const { temperature, description, } = await fetchWeather()
 
-            let isFirstLoad = true;
+                let isFirstLoad = true;
 
-            bgImgEl.onload = () => {
-                bgImgEl.style.opacity = '1';
-                if (isFirstLoad) {
-                    setTemperature(temperature);
-                    updateDateTime();
-                    // Small delay to let image appear first, then text
-                    setTimeout(() => {
-                        document.getElementById('weather-container').style.opacity = '1';
-                    }, 1000); 
-                    setInterval(updateDateTime, 1000);
-                    isFirstLoad = false;
-                }
-            };
+                const showContent = () => {
+                    if (isFirstLoad) {
+                        bgImgEl.style.opacity = '1';
+                        setTemperature(temperature);
+                        updateDateTime();
+                        // Small delay to let image appear first, then text
+                        setTimeout(() => {
+                            document.getElementById('weather-container').style.opacity = '1';
+                        }, 1000); 
+                        setInterval(updateDateTime, 1000);
+                        isFirstLoad = false;
+                    }
+                };
 
-            setBackground(description)
+                bgImgEl.onload = showContent;
+                
+                // Fallback: show content even if image fails to load (after 3 seconds)
+                bgImgEl.onerror = () => {
+                    console.error("Image failed to load:", bgImgEl.src);
+                    bgImgEl.style.opacity = '0.5'; // Show with reduced opacity if image fails
+                    showContent();
+                };
+                
+                // Timeout fallback: show content after 5 seconds regardless
+                setTimeout(() => {
+                    if (isFirstLoad) {
+                        console.warn("Image loading timeout, showing content anyway");
+                        showContent();
+                    }
+                }, 5000);
 
-            // Listen for resize to adjust background if shape changes
-             window.addEventListener('resize', () => {
-                 setBackground(description); 
-            });
+                setBackground(description)
+
+                // Listen for resize to adjust background if shape changes
+                 window.addEventListener('resize', () => {
+                     setBackground(description); 
+                });
+            } catch (error) {
+                console.error("FATAL ERROR in main process:", error);
+                console.error("Error stack:", error.stack);
+                // Show content even on fatal error
+                document.getElementById('weather-container').style.opacity = '1';
+            }
             
         });
     </script>
