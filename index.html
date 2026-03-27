@@ -341,7 +341,7 @@
                 const newPath = `./media/img/RT_${shape}/Sprite ${shape}_${spanishType}.png`;
 
                 console.log(`Setting background: ${newPath} (Shape: ${shape}, Type: ${type})`);
-                console.log(`Description: "${description}", Normalized: "${normalized}"`);
+                console.log(`Description: "${desc}", Normalized: "${normalized}"`);
                 bgImgEl.src = newPath;
 
                 // Update body class for responsive styling
@@ -365,12 +365,24 @@
             try {
                 console.log("Starting main process");
                 
-                // set weather data
-                const weatherData = await fetchWeather();
-                console.log("Fetched weather data:", weatherData);
+                // set weather data - with defensive defaults
+                let temperature = '--';
+                let description = 'niebla';
                 
-                const temperature = weatherData?.temperature || '--';
-                const description = weatherData?.description || 'niebla';
+                try {
+                    const weatherData = await fetchWeather();
+                    console.log("Fetched weather data:", weatherData);
+                    
+                    if (weatherData && typeof weatherData === 'object') {
+                        if (weatherData.temperature) temperature = weatherData.temperature;
+                        if (weatherData.description) description = weatherData.description;
+                    }
+                } catch (fetchError) {
+                    console.error("Error in fetchWeather:", fetchError);
+                    // Keep defaults
+                }
+                
+                console.log("Using temperature:", temperature, "description:", description);
 
                 let isFirstLoad = true;
 
