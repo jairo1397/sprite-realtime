@@ -211,7 +211,15 @@
                     const coordUrl = `https://apialacplayer.alacoohbolivia.com/playlist/panel/${panelId}`;
                     console.log("Requesting coordinates from:", coordUrl);
                     
-                    const coordResponse = await fetch(coordUrl);
+                    const coordResponse = await fetch(coordUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
                     if (!coordResponse.ok) {
                         throw new Error(`Coordinate API error: ${coordResponse.status}`);
                     }
@@ -233,7 +241,15 @@
                     const weatherUrl = `https://weatherstation.alacoohperu.pe/api/clima/${lat}/${long}`;
                     console.log("Requesting weather from:", weatherUrl);
 
-                    const response = await fetch(weatherUrl);
+                    const response = await fetch(weatherUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
                     if (!response.ok) {
                         throw new Error(`Weather API error: ${response.status}`);
                     }
@@ -253,9 +269,10 @@
                     }
                 } catch (e) {
                     console.error("Error fetching weather details:", e);
+                    console.error("Error type:", e.message);
                     console.error("Error stack:", e.stack);
-                    // Return existing data if available or placeholder, but log the error visibly
-                    return { temperature: '--', description: '' };
+                    // Return existing data if available or placeholder
+                    return { temperature: '--', description: 'niebla' };
                 }
             }
 
@@ -335,6 +352,7 @@
 
                 // Get Spanish translation for filename
                 const spanishType = WEATHER_TYPE_MAP[type];
+                console.log("spanishType from WEATHER_TYPE_MAP:", spanishType);
 
                 // Construct path: ./media/img/RT_shape/Sprite shape_type.png
                 // e.g. ./media/img/RT_horizontal/Sprite horizontal_soleado.png
@@ -342,7 +360,11 @@
 
                 console.log(`Setting background: ${newPath} (Shape: ${shape}, Type: ${type})`);
                 console.log(`Description: "${desc}", Normalized: "${normalized}"`);
+                console.log("Image path being set:", newPath);
+                console.log("Current location:", window.location.href);
+                
                 bgImgEl.src = newPath;
+                console.log("bgImgEl.src set to:", bgImgEl.src);
 
                 // Update body class for responsive styling
                 if (shape === 'cuadrado') {
