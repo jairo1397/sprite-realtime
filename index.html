@@ -366,7 +366,11 @@
                 console.log("Starting main process");
                 
                 // set weather data
-                const { temperature, description, } = await fetchWeather()
+                const weatherData = await fetchWeather();
+                console.log("Fetched weather data:", weatherData);
+                
+                const temperature = weatherData?.temperature || '--';
+                const description = weatherData?.description || 'niebla';
 
                 let isFirstLoad = true;
 
