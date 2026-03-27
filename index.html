@@ -103,7 +103,7 @@
             text-shadow: var(--weather-shadow);
             text-align: right;
 
-            opacity: 0;
+            opacity: 1;
         }
 
         #weather-date {
@@ -199,7 +199,7 @@
             // HELPER FUNCTIONS
             // ============================================
 
-            // fetch weather data from api
+            // fetch weather data from api with timeout
             const fetchWeather = async () => {
                 try {
                     // Get panel ID from URL query params (default to 1 if not present)
@@ -207,29 +207,35 @@
                     const panelId = urlParams.get('id') || 1;
                     console.log("Fetching data for Panel ID:", panelId);
 
-                    // Common fetch options with CORS and headers
-                    const fetchOptions = {
-                        method: 'GET',
-                        mode: 'cors',
-                        cache: 'no-cache',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                        }
-                    };
-
-                    // Fetch coordinates for the panel
+                    // Fetch coordinates with individual timeout
                     const coordUrl = `https://apialacplayer.alacoohbolivia.com/playlist/panel/${panelId}`;
                     console.log("Requesting coordinates from:", coordUrl);
                     
+                    const coordAbortController = new AbortController();
+                    const coordTimeoutId = setTimeout(() => {
+                        console.warn("Coordinates fetch timeout - aborting");
+                        coordAbortController.abort();
+                    }, 5000);
+
+                    const coordFetchOptions = {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        signal: coordAbortController.signal,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    };
+
                     let coordResponse;
                     try {
-                        coordResponse = await fetch(coordUrl, fetchOptions);
+                        coordResponse = await fetch(coordUrl, coordFetchOptions);
                     } catch (fetchErr) {
                         console.error("Fetch error for coordinates:", fetchErr.message);
+                        clearTimeout(coordTimeoutId);
                         throw fetchErr;
                     }
+                    clearTimeout(coordTimeoutId);
                     
                     if (!coordResponse.ok) {
                         console.error(`Coordinate API returned status: ${coordResponse.status}`);
@@ -250,17 +256,35 @@
 
                     console.log(`Coordinates found: Lat ${lat}, Long ${long}`);
 
-                    // Fetch weather using the retrieved coordinates
+                    // Fetch weather with individual timeout
                     const weatherUrl = `https://weatherstation.alacoohperu.pe/api/clima/${lat}/${long}`;
                     console.log("Requesting weather from:", weatherUrl);
 
+                    const weatherAbortController = new AbortController();
+                    const weatherTimeoutId = setTimeout(() => {
+                        console.warn("Weather fetch timeout - aborting");
+                        weatherAbortController.abort();
+                    }, 5000);
+
+                    const weatherFetchOptions = {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        signal: weatherAbortController.signal,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    };
+
                     let response;
                     try {
-                        response = await fetch(weatherUrl, fetchOptions);
+                        response = await fetch(weatherUrl, weatherFetchOptions);
                     } catch (fetchErr) {
                         console.error("Fetch error for weather:", fetchErr.message);
+                        clearTimeout(weatherTimeoutId);
                         throw fetchErr;
                     }
+                    clearTimeout(weatherTimeoutId);
                     
                     if (!response.ok) {
                         console.error(`Weather API returned status: ${response.status}`);
@@ -271,21 +295,19 @@
                     console.log("Weather Data:", respAux);
 
                     if (!respAux.data || !respAux.data.main || !respAux.data.weather) {
-                         throw new Error("Invalid weather data structure");
+                        throw new Error("Invalid weather data structure");
                     }
 
                     const temperature = respAux.data.main.temp.toString().split('.')[0]
                     const description = respAux.data.weather[0].description
-
+                    
                     return {
                         temperature,
                         description,
                     }
                 } catch (e) {
-                    console.error("Error fetching weather details:", e.message);
-                    console.error("Error type:", e.name);
-                    if (e.stack) console.error("Error stack:", e.stack);
-                    // Return existing data if available or placeholder
+                    console.error("Error fetching weather:", e.message || e.name);
+                    // Return defaults - Electron blocks external requests
                     return { temperature: '--', description: 'niebla' };
                 }
             }
@@ -401,6 +423,10 @@
             try {
                 console.log("Starting main process");
                 
+                // Update time and date IMMEDIATELY (don't wait for APIs)
+                updateDateTime();
+                setInterval(updateDateTime, 1000);
+                
                 // set weather data - with defensive defaults
                 let temperature = '--';
                 let description = 'niebla';
@@ -419,39 +445,37 @@
                 }
                 
                 console.log("Using temperature:", temperature, "description:", description);
+                setTemperature(temperature);
 
                 let isFirstLoad = true;
 
                 const showContent = () => {
                     if (isFirstLoad) {
                         bgImgEl.style.opacity = '1';
-                        setTemperature(temperature);
-                        updateDateTime();
                         // Small delay to let image appear first, then text
                         setTimeout(() => {
-                            document.getElementById('weather-container').style.opacity = '1';
+                            // Already visible, just for timing
                         }, 1000); 
-                        setInterval(updateDateTime, 1000);
                         isFirstLoad = false;
                     }
                 };
 
                 bgImgEl.onload = showContent;
                 
-                // Fallback: show content even if image fails to load (after 3 seconds)
+                // Fallback: show content even if image fails to load
                 bgImgEl.onerror = () => {
                     console.error("Image failed to load:", bgImgEl.src);
-                    bgImgEl.style.opacity = '0.5'; // Show with reduced opacity if image fails
+                    bgImgEl.style.opacity = '0.3'; // Show with reduced opacity if image fails
                     showContent();
                 };
                 
-                // Timeout fallback: show content after 5 seconds regardless
+                // Timeout fallback: ensure showContent is called
                 setTimeout(() => {
                     if (isFirstLoad) {
-                        console.warn("Image loading timeout, showing content anyway");
+                        console.warn("Image loading timeout, marking as shown");
                         showContent();
                     }
-                }, 5000);
+                }, 3000);
 
                 setBackground(description)
 
@@ -462,8 +486,7 @@
             } catch (error) {
                 console.error("FATAL ERROR in main process:", error);
                 console.error("Error stack:", error.stack);
-                // Show content even on fatal error
-                document.getElementById('weather-container').style.opacity = '1';
+                // Content is already visible from opacity:1
             }
             
         });
